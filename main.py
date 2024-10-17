@@ -3,10 +3,12 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import requests
 import os
 
-# Получаем токен телеграм бота и client_secret из переменных окружения
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+# Токен телеграм бота
+TELEGRAM_TOKEN = '7311543449:AAFY5nVhOwRJEbnJLHkTMskMFsGzXrKasXo'
+
+# Strava данные
 CLIENT_ID = '137731'  # Твой client_id от Strava
-CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET')
+CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET')  # Получай client_secret из переменных окружения
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -61,9 +63,8 @@ async def main() -> None:
     application.add_handler(CommandHandler('register', register))
     application.add_handler(CommandHandler('exchange_code', exchange_code))
 
-    # Запускаем вебхук
+    # Запуск вебхука
     application.run_webhook(listen='0.0.0.0', port=5000)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()  # Запускаем функцию main без asyncio.run()
