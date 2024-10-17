@@ -69,7 +69,7 @@ async def main() -> None:
     application.add_handler(CommandHandler('exchange_code', exchange_code))
 
     # Запуск приложения в режиме вебхука
-    application.run_webhook(
+    await application.run_webhook(
         listen="0.0.0.0",
         port=int(os.getenv('PORT', 8443)),
         url_path=TELEGRAM_TOKEN,
