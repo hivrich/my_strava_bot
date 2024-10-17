@@ -1,79 +1,63 @@
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import requests
 import os
 import asyncio
 import nest_asyncio
+import requests
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Примените nest_asyncio, чтобы избежать ошибок
 nest_asyncio.apply()
 
 # Получаем токены из переменных окружения
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')  # Используйте переменную окружения для токена Telegram
+STRAVA_CLIENT_ID = os.getenv('STRAVA_CLIENT_ID')
+STRAVA_CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
-# Strava данные
-CLIENT_ID = '137731'  # Твой client_id от Strava
-CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET')  # Получай client_secret из переменных окружения
-
-# Команда /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start(update, context):
     await update.message.reply_text('Привет! Я бот для взаимодействия со Strava.')
 
-# Команда /help
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
-        'Доступные команды:\n'
-        '/start - Начать общение с ботом\n'
-        '/help - Получить помощь\n'
-        '/register - Регистрация через Strava\n'
-        '/exchange_code <code> - Обмен кода на токен'
+async def help_command(update, context):
+    await update.message.reply_text('Команды: /start, /help, /activities')
+
+async def activities(update, context):
+    # Проверяем наличие access_token для Strava
+    access_token = os.getenv('STRAVA_ACCESS_TOKEN')
+    
+    if not access_token:
+        await update.message.reply_text('Ошибка: Необходим токен доступа Strava.')
+        return
+
+    # Получаем список активностей пользователя
+    response = requests.get(
+        f'https://www.strava.com/api/v3/athlete/activities',
+        headers={'Authorization': f'Bearer {access_token}'}
     )
 
-# Команда /register (отправляет ссылку для авторизации в Strava)
-async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    auth_url = (
-        'https://www.strava.com/oauth/authorize'
-        '?client_id={client_id}&response_type=code&redirect_uri=https://mystravabot-production.up.railway.app/webhook&approval_prompt=force&scope=read,read_all,profile:read_all,activity:read_all'
-    ).format(client_id=CLIENT_ID)
-    await update.message.reply_text(f'Авторизуйся через Strava: {auth_url}')
-
-# Команда /exchange_code (получает код и обменивает его на токен)
-async def exchange_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if context.args:  # Проверка наличия аргументов
-        code = context.args[0]  # Код, который вводит пользователь после авторизации
-        url = 'https://www.strava.com/oauth/token'
-        payload = {
-            'client_id': CLIENT_ID,
-            'client_secret': CLIENT_SECRET,
-            'code': code,
-            'grant_type': 'authorization_code'
-        }
-        response = requests.post(url, data=payload)
-        token_data = response.json()
-
-        if 'access_token' in token_data:
-            await update.message.reply_text(f"Твой токен: {token_data['access_token']}")
+    if response.status_code == 200:
+        activities = response.json()
+        if activities:
+            message = 'Ваши последние активности:\n'
+            for activity in activities[:5]:  # показываем только последние 5 активностей
+                message += f"{activity['name']} - {activity['distance']} м\n"
         else:
-            await update.message.reply_text('Не удалось получить токен. Проверь правильность кода.')
+            message = 'У вас нет активностей.'
     else:
-        await update.message.reply_text('Пожалуйста, укажи код после команды.')
+        message = 'Ошибка при получении активностей.'
 
-async def main() -> None:
-    # Создаём экземпляр Application
+    await update.message.reply_text(message)
+
+async def main():
+    if TELEGRAM_TOKEN is None:
+        print("Ошибка: токен бота не установлен.")
+        return
+
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    # Добавляем команды
-    application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler('help', help_command))
-    application.add_handler(CommandHandler('register', register))
-    application.add_handler(CommandHandler('exchange_code', exchange_code))
+    # Регистрация обработчиков команд
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("activities", activities))
 
-    # Запуск приложения в режиме вебхука
-    await application.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.getenv('PORT', 8443)),
-        url_path=TELEGRAM_TOKEN,
-    )
-    
-if __name__ == "__main__":
-    asyncio.run(main())  # Запускаем основной асинхронный цикл
+    # Запуск бота
+    await application.run_polling()
+
+if __name__ == '__main__':
+    asyncio.run(main())
