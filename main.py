@@ -64,8 +64,8 @@ async def main() -> None:
     application.add_handler(CommandHandler('register', register))
     application.add_handler(CommandHandler('exchange_code', exchange_code))
 
-    # Запуск вебхука
-    await application.run_webhook(listen='0.0.0.0', port=5000)
+    # Запуск приложения в режиме опроса
+    await application.run_polling()  # Меняем на run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())  # Теперь мы используем asyncio.run для запуска основной функции
+    asyncio.run(main())  # Запускаем основной асинхронный цикл
