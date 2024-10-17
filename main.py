@@ -68,4 +68,5 @@ async def main() -> None:
     await application.run_polling()  # Меняем на run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())  # Запускаем основной асинхронный цикл
+    loop = asyncio.get_event_loop()  # Получаем текущий цикл событий
+    loop.run_until_complete(main())  # Запускаем основной асинхронный цикл
