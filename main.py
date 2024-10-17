@@ -9,6 +9,9 @@ TELEGRAM_TOKEN = '7311543449:AAFY5nVhOwRJEbnJLHkTMskMFsGzXrKasXo'
 CLIENT_ID = '137731'  # Твой client_id от Strava
 CLIENT_SECRET = 'YOUR_CLIENT_SECRET'  # Твой client_secret от Strava
 
+# URL вебхука
+WEBHOOK_URL = "https://mystravabot-production.up.railway.app"
+
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text('Привет! Я бот для взаимодействия со Strava.')
@@ -27,7 +30,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     auth_url = (
         'https://www.strava.com/oauth/authorize'
-        '?client_id={client_id}&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,read_all,profile:read_all,activity:read_all'
+        '?client_id={client_id}&response_type=code&redirect_uri=https://mystravabot-production.up.railway.app&approval_prompt=force&scope=read,read_all,profile:read_all,activity:read_all'
     ).format(client_id=CLIENT_ID)
     await update.message.reply_text(f'Авторизуйся через Strava: {auth_url}')
 
@@ -52,10 +55,17 @@ async def exchange_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     else:
         await update.message.reply_text('Пожалуйста, укажи код после команды.')
 
-def main() -> None:
+async def set_webhook() -> None:
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    await application.bot.set_webhook(WEBHOOK_URL)
+
+async def main() -> None:
     # Создаём экземпляр Application
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-
+    
+    # Установка вебхука
+    await set_webhook()
+    
     # Добавляем команды
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', help_command))
@@ -63,7 +73,8 @@ def main() -> None:
     application.add_handler(CommandHandler('exchange_code', exchange_code))
 
     # Запуск бота
-    application.run_polling()
+    application.run_webhook(listen='0.0.0.0', port=5000)
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    asyncio.run(main())
