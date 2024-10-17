@@ -3,9 +3,13 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import requests
 import os
 import asyncio
+import nest_asyncio
 
-# Токен телеграм бота
-TELEGRAM_TOKEN = '7311543449:AAFY5nVhOwRJEbnJLHkTMskMFsGzXrKasXo'
+# Примените nest_asyncio, чтобы избежать ошибок
+nest_asyncio.apply()
+
+# Получаем токены из переменных окружения
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')  # Используйте переменную окружения для токена Telegram
 
 # Strava данные
 CLIENT_ID = '137731'  # Твой client_id от Strava
@@ -65,8 +69,7 @@ async def main() -> None:
     application.add_handler(CommandHandler('exchange_code', exchange_code))
 
     # Запуск приложения в режиме опроса
-    await application.run_polling()  # Меняем на run_polling()
+    await application.run_polling()
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()  # Получаем текущий цикл событий
-    loop.run_until_complete(main())  # Запускаем основной асинхронный цикл
+    asyncio.run(main())  # Запускаем основной асинхронный цикл
