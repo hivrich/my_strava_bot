@@ -48,6 +48,9 @@ async def activities(update, context):
 
     await update.message.reply_text(message)
 
+async def error_handler(update, context):
+    logger.error(f"Update {update} caused error {context.error}")
+
 async def main():
     if TELEGRAM_TOKEN is None:
         logger.error("Ошибка: токен бота не установлен.")
@@ -59,6 +62,9 @@ async def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("activities", activities))
+
+    # Добавление обработчика ошибок
+    application.add_error_handler(error_handler)
 
     # Запуск бота
     await application.run_polling()
