@@ -2,9 +2,14 @@ import os
 import asyncio
 import nest_asyncio
 import requests
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+import logging
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 nest_asyncio.apply()
+
+# Настройка логирования
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Получаем токены из переменных окружения
 STRAVA_CLIENT_ID = os.getenv('STRAVA_CLIENT_ID')
@@ -12,20 +17,19 @@ STRAVA_CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
 async def start(update, context):
+    logger.info("Bot started")
     await update.message.reply_text('Привет! Я бот для взаимодействия со Strava.')
 
 async def help_command(update, context):
     await update.message.reply_text('Команды: /start, /help, /activities')
 
 async def activities(update, context):
-    # Проверяем наличие access_token для Strava
     access_token = os.getenv('STRAVA_ACCESS_TOKEN')
     
     if not access_token:
         await update.message.reply_text('Ошибка: Необходим токен доступа Strava.')
         return
 
-    # Получаем список активностей пользователя
     response = requests.get(
         f'https://www.strava.com/api/v3/athlete/activities',
         headers={'Authorization': f'Bearer {access_token}'}
@@ -46,7 +50,7 @@ async def activities(update, context):
 
 async def main():
     if TELEGRAM_TOKEN is None:
-        print("Ошибка: токен бота не установлен.")
+        logger.error("Ошибка: токен бота не установлен.")
         return
 
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
