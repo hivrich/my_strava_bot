@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import requests
 import os
+import asyncio
 
 # Токен телеграм бота
 TELEGRAM_TOKEN = '7311543449:AAFY5nVhOwRJEbnJLHkTMskMFsGzXrKasXo'
@@ -64,7 +65,7 @@ async def main() -> None:
     application.add_handler(CommandHandler('exchange_code', exchange_code))
 
     # Запуск вебхука
-    application.run_webhook(listen='0.0.0.0', port=5000)
+    await application.run_webhook(listen='0.0.0.0', port=5000)
 
 if __name__ == "__main__":
-    main()  # Запускаем функцию main без asyncio.run()
+    asyncio.run(main())  # Теперь мы используем asyncio.run для запуска основной функции
