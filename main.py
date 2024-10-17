@@ -9,9 +9,12 @@ import nest_asyncio
 nest_asyncio.apply()
 
 # Получаем токены из переменных окружения
-TELEGRAM_TOKEN = '7311543449:AAFY5nVhOwRJEbnJLHkTMskMFsGzXrKasXo'  # Укажите ваш токен Telegram непосредственно
+TELEGRAM_TOKEN = '7311543449:AAFY5nVhOwRJEbnJLHkTMskMFsGzXrKasXo'  # Укажите ваш токен Telegram
 CLIENT_ID = '137731'  # Ваш client_id от Strava
-CLIENT_SECRET = '7257349b9930aec7f5c2ad6b105f6f24038e9712'  # Укажите ваш client_secret непосредственно
+CLIENT_SECRET = '7257349b9930aec7f5c2ad6b105f6f24038e9712'  # Укажите ваш client_secret
+
+# URL для вебхука
+WEBHOOK_URL = 'https://mystravabot-production.up.railway.app/' + TELEGRAM_TOKEN  # Ваш HTTPS URL
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -31,8 +34,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     auth_url = (
         'https://www.strava.com/oauth/authorize'
-        '?client_id={client_id}&response_type=code&redirect_uri=https://mystravabot-production.up.railway.app/webhook&approval_prompt=force&scope=read,read_all,profile:read_all,activity:read_all'
-    ).format(client_id=CLIENT_ID)
+        '?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&approval_prompt=force&scope=read,read_all,profile:read_all,activity:read_all'
+    ).format(client_id=CLIENT_ID, redirect_uri=WEBHOOK_URL)
     await update.message.reply_text(f'Авторизуйся через Strava: {auth_url}')
 
 # Команда /exchange_code (получает код и обменивает его на токен)
@@ -65,6 +68,9 @@ async def main() -> None:
     application.add_handler(CommandHandler('help', help_command))
     application.add_handler(CommandHandler('register', register))
     application.add_handler(CommandHandler('exchange_code', exchange_code))
+
+    # Устанавливаем вебхук
+    await application.bot.set_webhook(WEBHOOK_URL)
 
     # Запуск приложения в режиме вебхука
     await application.run_webhook(
