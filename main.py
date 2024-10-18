@@ -1,9 +1,9 @@
 import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from strava_auth import get_authorization_url, exchange_code_for_token, refresh_access_token
-from strava_request import get_athlete_activities, get_activity_photos
+from strava_request import get_athlete_activities, get_activity_photos, get_athlete_info
 import sqlite3
 
 # Настройка логирования
@@ -39,13 +39,13 @@ def get_user_tokens(user_id):
     conn.close()
     return result if result else (None, None)
 
-def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     auth_url = get_authorization_url()
     keyboard = [[InlineKeyboardButton("Авторизоваться в Strava", url=auth_url)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text('Нажмите кнопку ниже, чтобы авторизоваться в Strava:', reply_markup=reply_markup)
+    await update.message.reply_text('Нажмите кнопку ниже, чтобы авторизоваться в Strava:', reply_markup=reply_markup)
 
-def auth_callback(update: Update, context: CallbackContext) -> None:
+async def auth_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     code = query.data
     user_id = query.from_user.id
@@ -53,15 +53,15 @@ def auth_callback(update: Update, context: CallbackContext) -> None:
     access_token, refresh_token = exchange_code_for_token(code)
     save_user_tokens(user_id, access_token, refresh_token)
 
-    query.answer()
-    query.edit_message_text(text="Вы успешно авторизовались в Strava!")
+    await query.answer()
+    await query.edit_message_text(text="Вы успешно авторизовались в Strava!")
 
-def show_activities(update: Update, context: CallbackContext) -> None:
+async def show_activities(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     access_token, refresh_token = get_user_tokens(user_id)
 
     if not access_token:
-        update.message.reply_text("Пожалуйста, сначала авторизуйтесь в Strava.")
+        await update.message.reply_text("Пожалуйста, сначала авторизуйтесь в Strava.")
         return
 
     # Попробуем обновить токен перед использованием
@@ -82,16 +82,16 @@ def show_activities(update: Update, context: CallbackContext) -> None:
             keyboard = [[InlineKeyboardButton("Нравится", callback_data=f"like_{activity['id']}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            update.message.reply_text(message, reply_markup=reply_markup)
+            await update.message.reply_text(message, reply_markup=reply_markup)
             
             photos = get_activity_photos(access_token, activity['id'])
             if photos:
                 for photo in photos[:3]:  # Показываем до 3 фотографий
-                    update.message.reply_photo(photo['urls']['600'])
+                    await update.message.reply_photo(photo['urls']['600'])
     else:
-        update.message.reply_text("Не удалось получить данные о ваших активностях.")
+        await update.message.reply_text("Не удалось получить данные о ваших активностях.")
 
-def like_activity(update: Update, context: CallbackContext) -> None:
+async def like_activity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     activity_id = query.data.split('_')[1]
     user_id = query.from_user.id
@@ -102,10 +102,10 @@ def like_activity(update: Update, context: CallbackContext) -> None:
     conn.commit()
     conn.close()
 
-    query.answer("Вам понравилась эта активность!")
-    check_mutual_likes(update, context, user_id, activity_id)
+    await query.answer("Вам понравилась эта активность!")
+    await check_mutual_likes(update, context, user_id, activity_id)
 
-def check_mutual_likes(update: Update, context: CallbackContext, user_id: int, activity_id: str) -> None:
+async def check_mutual_likes(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, activity_id: str) -> None:
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     c.execute("SELECT user_id FROM likes WHERE activity_id = ? AND user_id != ?", (activity_id, user_id))
@@ -115,7 +115,7 @@ def check_mutual_likes(update: Update, context: CallbackContext, user_id: int, a
     for liked_user in liked_users:
         other_user_id = liked_user[0]
         if has_mutual_like(user_id, other_user_id):
-            send_mutual_like_notification(update, context, user_id, other_user_id)
+            await send_mutual_like_notification(update, context, user_id, other_user_id)
 
 def has_mutual_like(user_id1: int, user_id2: int) -> bool:
     conn = sqlite3.connect('users.db')
@@ -129,23 +129,42 @@ def has_mutual_like(user_id1: int, user_id2: int) -> bool:
     conn.close()
     return count > 0
 
-def send_mutual_like_notification(update: Update, context: CallbackContext, user_id1: int, user_id2: int) -> None:
-    # Здесь нужно реализовать отправку уведомлений обоим пользователям
-    # Это потребует дополнительной работы с API Telegram и Strava для получения профилей пользователей
-    pass
+async def send_mutual_like_notification(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id1: int, user_id2: int) -> None:
+    try:
+        # Получаем информацию о пользователях из Strava
+        access_token1, _ = get_user_tokens(user_id1)
+        access_token2, _ = get_user_tokens(user_id2)
+        
+        athlete1 = get_athlete_info(access_token1)
+        athlete2 = get_athlete_info(access_token2)
+        
+        # Отправляем уведомления обоим пользователям
+        message1 = f"У вас взаимный лайк с {athlete2['firstname']} {athlete2['lastname']}! Профиль: https://www.strava.com/athletes/{athlete2['id']}"
+        message2 = f"У вас взаимный лайк с {athlete1['firstname']} {athlete1['lastname']}! Профиль: https://www.strava.com/athletes/{athlete1['id']}"
+        
+        await context.bot.send_message(chat_id=user_id1, text=message1)
+        await context.bot.send_message(chat_id=user_id2, text=message2)
+    except Exception as e:
+        logger.error(f"Ошибка при отправке уведомления о взаимном лайке: {e}")
 
 def main() -> None:
     init_db()
-    updater = Updater(os.environ.get("TELEGRAM_BOT_TOKEN"))
+    application = Application.builder().token(os.environ.get("TELEGRAM_BOT_TOKEN")).build()
 
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CallbackQueryHandler(auth_callback, pattern='^[0-9a-fA-F]{40}$'))
-    dp.add_handler(CommandHandler("activities", show_activities))
-    dp.add_handler(CallbackQueryHandler(like_activity, pattern='^like_'))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(auth_callback, pattern='^[0-9a-fA-F]{40}$'))
+    application.add_handler(CommandHandler("activities", show_activities))
+    application.add_handler(CallbackQueryHandler(like_activity, pattern='^like_'))
 
-    updater.start_polling()
-    updater.idle()
+    webhook_url = os.environ.get("WEBHOOK_URL", "https://mystravabot-production.up.railway.app")
+    port = int(os.environ.get("PORT", "8443"))
+    
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path=os.environ.get("TELEGRAM_BOT_TOKEN"),
+        webhook_url=f"{webhook_url}/{os.environ.get('TELEGRAM_BOT_TOKEN')}"
+    )
 
 if __name__ == '__main__':
     main()
