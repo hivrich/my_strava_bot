@@ -1,20 +1,20 @@
 import os
 import logging
+import sys
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from strava_auth import get_authorization_url, exchange_code_for_token, refresh_access_token
 from strava_request import get_athlete_activities, get_activity_photos, get_athlete_info
 import sqlite3
-import sys
+
+# Настройка логирования
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 sys.excepthook = handle_exception
-
-# Настройка логирования
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Инициализация базы данных
 def init_db():
@@ -201,7 +201,7 @@ def main() -> None:
         application.add_handler(CallbackQueryHandler(like_activity, pattern='^like_'))
 
         webhook_url = os.environ.get("WEBHOOK_URL", "https://mystravabot-production.up.railway.app")
-        port = int(os.environ.get("PORT", "8443"))
+        port = int(os.environ.get("PORT", "8080"))
         
         logger.info(f"Starting webhook on {webhook_url}:{port}")
         application.run_webhook(
