@@ -2,7 +2,7 @@ import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
-from strava_auth import get_authorization_url, exchange_code_for_token
+from strava_auth import get_authorization_url, exchange_code_for_token, refresh_access_token
 from strava_request import get_athlete_activities, get_activity_photos
 import sqlite3
 
@@ -58,11 +58,18 @@ def auth_callback(update: Update, context: CallbackContext) -> None:
 
 def show_activities(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
-    access_token, _ = get_user_tokens(user_id)
+    access_token, refresh_token = get_user_tokens(user_id)
 
     if not access_token:
         update.message.reply_text("Пожалуйста, сначала авторизуйтесь в Strava.")
         return
+
+    # Попробуем обновить токен перед использованием
+    new_access_token, new_refresh_token = refresh_access_token(refresh_token)
+    if new_access_token:
+        access_token = new_access_token
+        refresh_token = new_refresh_token
+        save_user_tokens(user_id, access_token, refresh_token)
 
     activities = get_athlete_activities(access_token)
     if activities:
