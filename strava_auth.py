@@ -30,5 +30,21 @@ def exchange_code_for_token(code):
     else:
         return None, None
 
+def refresh_access_token(refresh_token):
+    response = requests.post(
+        'https://www.strava.com/oauth/token',
+        data={
+            'client_id': STRAVA_CLIENT_ID,
+            'client_secret': STRAVA_CLIENT_SECRET,
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token
+        }
+    )
+    if response.status_code == 200:
+        data = response.json()
+        return data['access_token'], data['refresh_token']
+    else:
+        return None, None
+
 if __name__ == '__main__':
     print(get_authorization_url())
