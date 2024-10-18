@@ -21,3 +21,12 @@ def get_activity_photos(access_token, activity_id):
     else:
         print(f"Ошибка: {response.status_code}, {response.text}")
         return None
+def get_athlete_info(access_token):
+    url = "https://www.strava.com/api/v3/athlete"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Ошибка: {response.status_code}, {response.text}")
+        return None
