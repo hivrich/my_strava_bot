@@ -192,6 +192,8 @@ async def send_mutual_like_notification(update: Update, context: ContextTypes.DE
 def main() -> None:
     try:
         logger.info("Initializing bot")
+        if not os.environ.get("TELEGRAM_BOT_TOKEN"):
+            raise ValueError("TELEGRAM_BOT_TOKEN is not set in environment variables")
         init_db()
         application = Application.builder().token(os.environ.get("TELEGRAM_BOT_TOKEN")).build()
 
