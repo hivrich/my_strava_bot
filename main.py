@@ -5,6 +5,12 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 from strava_auth import get_authorization_url, exchange_code_for_token, refresh_access_token
 from strava_request import get_athlete_activities, get_activity_photos, get_athlete_info
 import sqlite3
+import sys
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+sys.excepthook = handle_exception
 
 # Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
