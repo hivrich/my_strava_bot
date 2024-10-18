@@ -3,7 +3,7 @@ import requests
 
 STRAVA_CLIENT_ID = os.environ.get('STRAVA_CLIENT_ID', '137731')
 STRAVA_CLIENT_SECRET = os.environ.get('STRAVA_CLIENT_SECRET', '7257349b9930aec7f5c2ad6b105f6f24038e9712')
-REDIRECT_URI = os.environ.get('REDIRECT_URI', 'https://mystravabot-production.up.railway.app/strava_callback')
+REDIRECT_URI = os.environ.get('REDIRECT_URI', 'https://mystravabot-production.up.railway.app')
 
 def get_authorization_url():
     params = {
