@@ -2,9 +2,7 @@ import os
 import logging
 import sys
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-from strava_auth import get_authorization_url, exchange_code_for_token, refresh_access_token
-from strava_request import get_athlete_activities, get_activity_photos, get_athlete_info
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import sqlite3
 
 # Настройка логирования
@@ -30,9 +28,14 @@ def init_db():
     logger.info("Database initialized")
 
 # Функция для команды /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logger.info(f"/start received from user {update.effective_user.id}")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"/start command received from user {update.effective_user.id}")
     await update.message.reply_text("Привет! Я ваш Strava бот. Используйте /help для списка доступных команд.")
+
+# Обработчик неизвестных команд
+async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.warning(f"Received unknown command: {update.message.text}")
+    await update.message.reply_text("Извините, я не понимаю эту команду.")
 
 # Основная функция запуска
 def main() -> None:
@@ -53,6 +56,7 @@ def main() -> None:
 
         # Регистрация обработчиков команд
         application.add_handler(CommandHandler("start", start))
+        application.add_handler(MessageHandler(filters.COMMAND, unknown))
 
         # Запуск вебхука
         logger.info(f"Starting webhook on {WEBHOOK_URL}:{PORT}")
