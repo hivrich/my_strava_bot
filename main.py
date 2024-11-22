@@ -52,6 +52,6 @@ def test_endpoint():
 # Запуск приложения
 if __name__ == "__main__":
     logger.info("Запуск приложения...")
-    application.initialize()
-    application.bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}")
+    application.initialize()  # Убедись, что это корректно вызывается как корутина
+    application.run_task()  # Используем run_task вместо ручного set_webhook
     app.run(host="0.0.0.0", port=PORT)
