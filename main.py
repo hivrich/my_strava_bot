@@ -8,6 +8,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Обработка необработанных ошибок
 def handle_exception(exc_type, exc_value, exc_traceback):
     logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
@@ -17,7 +18,7 @@ sys.excepthook = handle_exception
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         logger.info(f"/start command received from user {update.effective_user.id}")
-        auth_url = "https://example.com/auth"  # Заменить на реальный URL авторизации Strava
+        auth_url = "https://example.com/auth"  # Здесь можно вставить ссылку на авторизацию Strava
         keyboard = [[InlineKeyboardButton("Авторизоваться в Strava", url=auth_url)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text('Нажмите кнопку ниже, чтобы авторизоваться в Strava:', reply_markup=reply_markup)
@@ -28,11 +29,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Основная функция запуска
 def main():
     try:
+        # Проверяем и логируем все переменные окружения
+        logger.info(f"Все доступные переменные окружения: {dict(os.environ)}")
+
         # Загрузка переменных окружения
         TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
         WEBHOOK_URL = os.getenv("WEBHOOK_URL")
         PORT = int(os.getenv("PORT", "8080"))
 
+        # Проверяем наличие необходимых переменных
         logger.info(f"TELEGRAM_BOT_TOKEN={TELEGRAM_BOT_TOKEN}")
         logger.info(f"WEBHOOK_URL={WEBHOOK_URL}")
         logger.info(f"PORT={PORT}")
