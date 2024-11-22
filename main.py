@@ -16,15 +16,18 @@ sys.excepthook = handle_exception
 
 # Функция для команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"Получен запрос на /start: {update}")
     try:
-        logger.info(f"/start command received from user {update.effective_user.id}")
-        auth_url = "https://example.com/auth"  # Здесь можно вставить ссылку на авторизацию Strava
+        auth_url = "https://example.com/auth"  # Заменить на реальную ссылку Strava
         keyboard = [[InlineKeyboardButton("Авторизоваться в Strava", url=auth_url)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text('Нажмите кнопку ниже, чтобы авторизоваться в Strava:', reply_markup=reply_markup)
-        logger.info("Response to /start sent successfully.")
+        await update.message.reply_text(
+            'Нажмите кнопку ниже, чтобы авторизоваться в Strava:',
+            reply_markup=reply_markup
+        )
+        logger.info("Ответ на /start отправлен")
     except Exception as e:
-        logger.error(f"Error in /start handler: {e}")
+        logger.error(f"Ошибка в обработчике /start: {e}")
 
 # Основная функция запуска
 def main():
