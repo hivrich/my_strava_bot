@@ -52,6 +52,14 @@ def test_endpoint():
 # Запуск приложения
 if __name__ == "__main__":
     logger.info("Запуск приложения...")
-    application.initialize()  # Убедись, что это корректно вызывается как корутина
-    application.run_task()  # Используем run_task вместо ручного set_webhook
+
+    # Запуск Telegram Webhook с использованием coroutines
+    async def run_bot():
+        await application.initialize()
+        await application.bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}")
+        await application.start()
+        logger.info("Telegram бот запущен.")
+
+    import asyncio
+    asyncio.run(run_bot())
     app.run(host="0.0.0.0", port=PORT)
