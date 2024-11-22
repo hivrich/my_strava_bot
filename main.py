@@ -3,6 +3,7 @@ import logging
 import sys
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -29,6 +30,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Ошибка в обработчике /start: {e}")
 
+# Простой обработчик POST-запросов для теста
+class TestHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        try:
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            logger.info(f"Получен POST-запрос: {post_data.decode('utf-8')}")
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+        except Exception as e:
+            logger.error(f"Ошибка обработки запроса: {e}")
+            self.send_response(500)
+            self.end_headers()
+
 # Основная функция запуска
 def main():
     try:
@@ -52,7 +68,7 @@ def main():
         application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
         application.add_handler(CommandHandler("start", start))
 
-        # Добавляем логирование запуска вебхука
+        # Логируем запуск вебхука
         logger.info("Попытка запуска вебхука...")
         logger.info(f"URL вебхука: {WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}")
 
@@ -63,8 +79,14 @@ def main():
             url_path=TELEGRAM_BOT_TOKEN,
             webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}"
         )
+
+        # Дополнительно запускаем тестовый сервер для логирования запросов
+        logger.info(f"Запуск тестового сервера на порту {PORT}")
+        server = HTTPServer(('', PORT), TestHandler)
+        server.serve_forever()
+
     except Exception as e:
-        logger.error(f"Error in main function: {e}")
+        logger.error(f"Ошибка в main: {e}")
 
 if __name__ == "__main__":
     logger.info("Запуск бота...")
