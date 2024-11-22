@@ -11,11 +11,12 @@ logger = logging.getLogger(__name__)
 # Создаем Flask-приложение
 app = Flask(__name__)
 
-# Создаем Telegram-приложение
+# Переменные окружения
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 PORT = int(os.getenv("PORT", 8080))
 
+# Создаем Telegram-приложение
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 # Хендлер для команды /start
@@ -51,5 +52,6 @@ def test_endpoint():
 # Запуск приложения
 if __name__ == "__main__":
     logger.info("Запуск приложения...")
+    application.initialize()
     application.bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}")
     app.run(host="0.0.0.0", port=PORT)
