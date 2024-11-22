@@ -29,13 +29,31 @@ def init_db():
 
 # Функция для команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(f"/start command received from user {update.effective_user.id}")
-    await update.message.reply_text("Привет! Я ваш Strava бот. Используйте /help для списка доступных команд.")
+    try:
+        logger.info(f"/start command received from user {update.effective_user.id}")
+        auth_url = "https://example.com/auth"  # Заменить на реальный URL авторизации Strava
+        keyboard = [[InlineKeyboardButton("Авторизоваться в Strava", url=auth_url)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text('Нажмите кнопку ниже, чтобы авторизоваться в Strava:', reply_markup=reply_markup)
+        logger.info("Successfully responded to /start")
+    except Exception as e:
+        logger.error(f"Error in /start handler: {e}")
 
 # Обработчик неизвестных команд
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.warning(f"Received unknown command: {update.message.text}")
-    await update.message.reply_text("Извините, я не понимаю эту команду.")
+    try:
+        logger.warning(f"Received unknown command: {update.message.text}")
+        await update.message.reply_text("Извините, я не понимаю эту команду.")
+    except Exception as e:
+        logger.error(f"Error in unknown command handler: {e}")
+
+# Обработчик для получения данных активностей
+async def get_activities(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        logger.info(f"/activities command received from user {update.effective_user.id}")
+        await update.message.reply_text("Эта функция пока в разработке.")
+    except Exception as e:
+        logger.error(f"Error in /activities handler: {e}")
 
 # Основная функция запуска
 def main() -> None:
@@ -56,6 +74,7 @@ def main() -> None:
 
         # Регистрация обработчиков команд
         application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("activities", get_activities))
         application.add_handler(MessageHandler(filters.COMMAND, unknown))
 
         # Запуск вебхука
