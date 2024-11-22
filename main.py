@@ -1,11 +1,26 @@
 import os
 import logging
 import sys
+from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from strava_auth import get_authorization_url, exchange_code_for_token, refresh_access_token
 from strava_request import get_athlete_activities, get_activity_photos, get_athlete_info
 import sqlite3
+
+# Загрузка переменных окружения из .env
+load_dotenv()
+
+# Получение переменных из окружения
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+PORT = int(os.getenv("PORT", "8080"))
+
+# Проверка, что переменные загружены
+if not TELEGRAM_BOT_TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN is not set. Check your .env file.")
+if not WEBHOOK_URL:
+    raise ValueError("WEBHOOK_URL is not set. Check your .env file.")
 
 # Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -100,117 +115,31 @@ async def show_activities(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     logger.info(f"Getting activities for user {user_id}")
     activities = get_athlete_activities(access_token)
     if activities:
-        logger.info(f"Retrieved {len(activities)} activities for user {user_id}")
         for activity in activities[:5]:  # Показываем только 5 последних активностей
-            message = f"Тип: {activity['type']}\n"
-            message += f"Дата: {activity['start_date_local']}\n"
-            message += f"Название: {activity['name']}\n"
-            message += f"Расстояние: {activity['distance'] / 1000:.2f} км\n"
-            
+            message = f"Тип: {activity['type']}\nДата: {activity['start_date_local']}\nНазвание: {activity['name']}\nРасстояние: {activity['distance'] / 1000:.2f} км\n"
             keyboard = [[InlineKeyboardButton("Нравится", callback_data=f"like_{activity['id']}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
             await update.message.reply_text(message, reply_markup=reply_markup)
-            
-            logger.info(f"Getting photos for activity {activity['id']}")
-            photos = get_activity_photos(access_token, activity['id'])
-            if photos:
-                logger.info(f"Retrieved {len(photos)} photos for activity {activity['id']}")
-                for photo in photos[:3]:  # Показываем до 3 фотографий
-                    await update.message.reply_photo(photo['urls']['600'])
-            else:
-                logger.info(f"No photos found for activity {activity['id']}")
     else:
         await update.message.reply_text("Не удалось получить данные о ваших активностях.")
         logger.error(f"Failed to retrieve activities for user {user_id}")
 
-async def like_activity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logger.info("Like activity callback received")
-    query = update.callback_query
-    activity_id = query.data.split('_')[1]
-    user_id = query.from_user.id
-
-    logger.info(f"Saving like for user {user_id} and activity {activity_id}")
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO likes (user_id, activity_id) VALUES (?, ?)", (user_id, activity_id))
-    conn.commit()
-    conn.close()
-    logger.info(f"Like saved for user {user_id} and activity {activity_id}")
-
-    await query.answer("Вам понравилась эта активность!")
-    await check_mutual_likes(update, context, user_id, activity_id)
-
-async def check_mutual_likes(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, activity_id: str) -> None:
-    logger.info(f"Checking mutual likes for user {user_id} and activity {activity_id}")
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute("SELECT user_id FROM likes WHERE activity_id = ? AND user_id != ?", (activity_id, user_id))
-    liked_users = c.fetchall()
-    conn.close()
-
-    for liked_user in liked_users:
-        other_user_id = liked_user[0]
-        if has_mutual_like(user_id, other_user_id):
-            logger.info(f"Mutual like found between users {user_id} and {other_user_id}")
-            await send_mutual_like_notification(update, context, user_id, other_user_id)
-
-def has_mutual_like(user_id1: int, user_id2: int) -> bool:
-    logger.info(f"Checking for mutual like between users {user_id1} and {user_id2}")
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute("""
-        SELECT COUNT(*) FROM likes l1
-        JOIN likes l2 ON l1.activity_id = l2.activity_id
-        WHERE l1.user_id = ? AND l2.user_id = ?
-    """, (user_id1, user_id2))
-    count = c.fetchone()[0]
-    conn.close()
-    logger.info(f"Mutual like check result: {count > 0}")
-    return count > 0
-
-async def send_mutual_like_notification(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id1: int, user_id2: int) -> None:
-    logger.info(f"Sending mutual like notification for users {user_id1} and {user_id2}")
-    try:
-        # Получаем информацию о пользователях из Strava
-        access_token1, _ = get_user_tokens(user_id1)
-        access_token2, _ = get_user_tokens(user_id2)
-        
-        athlete1 = get_athlete_info(access_token1)
-        athlete2 = get_athlete_info(access_token2)
-        
-        # Отправляем уведомления обоим пользователям
-        message1 = f"У вас взаимный лайк с {athlete2['firstname']} {athlete2['lastname']}! Профиль: https://www.strava.com/athletes/{athlete2['id']}"
-        message2 = f"У вас взаимный лайк с {athlete1['firstname']} {athlete1['lastname']}! Профиль: https://www.strava.com/athletes/{athlete1['id']}"
-        
-        await context.bot.send_message(chat_id=user_id1, text=message1)
-        await context.bot.send_message(chat_id=user_id2, text=message2)
-        logger.info(f"Mutual like notifications sent to users {user_id1} and {user_id2}")
-    except Exception as e:
-        logger.error(f"Error sending mutual like notification: {e}")
-
 def main() -> None:
     try:
         logger.info("Initializing bot")
-        if not os.environ.get("TELEGRAM_BOT_TOKEN"):
-            raise ValueError("TELEGRAM_BOT_TOKEN is not set in environment variables")
         init_db()
-        application = Application.builder().token(os.environ.get("TELEGRAM_BOT_TOKEN")).build()
+        application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CallbackQueryHandler(auth_callback, pattern='^[0-9a-fA-F]{40}$'))
         application.add_handler(CommandHandler("activities", show_activities))
-        application.add_handler(CallbackQueryHandler(like_activity, pattern='^like_'))
 
-        webhook_url = os.environ.get("WEBHOOK_URL", "https://mystravabot-production.up.railway.app")
-        port = int(os.environ.get("PORT", "8080"))
-        
-        logger.info(f"Starting webhook on {webhook_url}:{port}")
+        logger.info(f"Starting webhook on {WEBHOOK_URL}:{PORT}")
         application.run_webhook(
             listen="0.0.0.0",
-            port=port,
-            url_path=os.environ.get("TELEGRAM_BOT_TOKEN"),
-            webhook_url=f"{webhook_url}/{os.environ.get('TELEGRAM_BOT_TOKEN')}"
+            port=PORT,
+            url_path=TELEGRAM_BOT_TOKEN,
+            webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}"
         )
     except Exception as e:
         logger.error(f"Error in main function: {e}")
