@@ -52,8 +52,11 @@ def main():
         application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
         application.add_handler(CommandHandler("start", start))
 
+        # Добавляем логирование запуска вебхука
+        logger.info("Попытка запуска вебхука...")
+        logger.info(f"URL вебхука: {WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}")
+
         # Запуск вебхука
-        logger.info(f"Starting webhook on {WEBHOOK_URL}:{PORT}")
         application.run_webhook(
             listen="0.0.0.0",
             port=PORT,
@@ -64,4 +67,5 @@ def main():
         logger.error(f"Error in main function: {e}")
 
 if __name__ == "__main__":
+    logger.info("Запуск бота...")
     main()
