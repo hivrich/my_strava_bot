@@ -19,7 +19,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-    PORT = int(os.getenv("PORT", "8443"))
+    PORT = int(os.getenv("PORT", "8080"))
 
     if not TELEGRAM_BOT_TOKEN or not WEBHOOK_URL:
         logger.error("Переменные окружения TELEGRAM_BOT_TOKEN или WEBHOOK_URL не установлены.")
