@@ -35,16 +35,8 @@ application = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    auth_url = (
-        f"https://www.strava.com/oauth/authorize?client_id={STRAVA_CLIENT_ID}"
-        f"&redirect_uri={WEBHOOK_URL}/strava_callback&response_type=code&scope=read"
-    )
-    keyboard = [[InlineKeyboardButton("Авторизоваться в Strava", url=auth_url)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "Привет! Нажмите кнопку ниже, чтобы авторизоваться в Strava:",
-        reply_markup=reply_markup
-    )
+    logging.info(f"Команда /start получена от пользователя: {update.effective_user.id}")
+    await update.message.reply_text("Привет! Бот работает!")
 
 # Регистрация обработчика команды /start
 application.add_handler(CommandHandler("start", start))
@@ -53,6 +45,7 @@ application.add_handler(CommandHandler("start", start))
 @app.route("/webhook", methods=["POST"])
 def telegram_webhook():
     data = request.get_json()
+    logging.info(f"Webhook получил данные: {data}")
     if data:
         update = Update.de_json(data, application.bot)
         application.update_queue.put_nowait(update)
