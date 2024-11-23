@@ -80,6 +80,17 @@ def strava_callback():
             return "Ошибка при авторизации в Strava."
     return "Код авторизации не предоставлен."
 
+# Временный маршрут для проверки переменных окружения
+@app.route("/debug_env", methods=["GET"])
+def debug_env():
+    return jsonify({
+        "TELEGRAM_TOKEN": TELEGRAM_TOKEN,
+        "WEBHOOK_URL": WEBHOOK_URL,
+        "STRAVA_CLIENT_ID": STRAVA_CLIENT_ID,
+        "STRAVA_CLIENT_SECRET": STRAVA_CLIENT_SECRET,
+        "PORT": PORT
+    })
+
 # Главная точка запуска приложения
 if __name__ == "__main__":
     # Устанавливаем вебхук
