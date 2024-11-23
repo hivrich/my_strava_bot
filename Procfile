@@ -1,2 +1,3 @@
 web: python main.py
-web: gunicorn main:app --bind 0.0.0.0:$PORT --worker-class aiohttp.GunicornWebWorker
+web: gunicorn main:app --bind 0.0.0.0:$PORT --workers 4
+
