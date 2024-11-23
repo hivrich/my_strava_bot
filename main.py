@@ -94,4 +94,4 @@ if __name__ == "__main__":
     # Устанавливаем вебхук при запуске приложения
     application.bot.set_webhook(url=WEBHOOK_URL + "/webhook")
     # Запускаем Flask-приложение
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8443)))
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)))
