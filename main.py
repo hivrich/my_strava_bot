@@ -50,6 +50,7 @@ async def telegram_webhook():
     logging.info(f"Webhook получил данные: {data}")
     if data:
         update = Update.de_json(data, application.bot)
+        await application.initialize()  # Инициализация приложения перед обработкой обновлений
         await application.process_update(update)
     return jsonify({"status": "ok"})
 
