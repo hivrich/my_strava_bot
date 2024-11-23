@@ -49,7 +49,7 @@ def telegram_webhook():
     logging.info(f"Webhook получил данные: {data}")
     if data:
         update = Update.de_json(data, application.bot)
-        application.update_queue.put_nowait(update)
+        application.process_update(update)
     return jsonify({"status": "ok"})
 
 # Маршрут для обработки обратного вызова от Strava
