@@ -1,8 +1,6 @@
-.gitignore.save
-.DS_Store
 venv/
+.env
 __pycache__/
 *.pyc
-*.db
-.env
+config.py
 
