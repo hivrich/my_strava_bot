@@ -1,41 +1,50 @@
-import logging
 import os
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+import logging
+from flask import Flask, request, jsonify
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Dispatcher, CommandHandler
 
 # Настройка логирования
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+app = Flask(__name__)
+
+# Telegram Bot Token и Webhook URL
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+
+bot = Bot(token=TOKEN)
+
 # Обработчик команды /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(f"Команда /start от {update.effective_user.id}")
-    await update.message.reply_text("Привет! Я бот для работы со Strava.")
+def start(update, context):
+    auth_url = os.getenv("STRAVA_AUTH_URL", "https://example.com/auth")  # Укажи свою ссылку
+    keyboard = [[InlineKeyboardButton("Авторизоваться в Strava", url=auth_url)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text("Нажмите кнопку ниже, чтобы авторизоваться в Strava:", reply_markup=reply_markup)
+
+# Настройка диспетчера
+dispatcher = Dispatcher(bot, None, workers=0)
+dispatcher.add_handler(CommandHandler("start", start))
+
+# Маршрут для Telegram вебхука
+@app.route(f"/{TOKEN}", methods=["POST"])
+def telegram_webhook():
+    try:
+        update = Update.de_json(request.get_json(force=True), bot)
+        dispatcher.process_update(update)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        logger.error(f"Ошибка обработки вебхука: {e}")
+        return jsonify({"status": "error"}), 500
+
+# Тестовый маршрут
+@app.route("/test", methods=["GET"])
+def test():
+    return "Бот работает!", 200
 
 # Основной запуск приложения
-def main():
-    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-    PORT = int(os.getenv("PORT", "8080"))
-
-    if not TELEGRAM_BOT_TOKEN or not WEBHOOK_URL:
-        logger.error("Переменные окружения TELEGRAM_BOT_TOKEN или WEBHOOK_URL не установлены.")
-        raise ValueError("TELEGRAM_BOT_TOKEN или WEBHOOK_URL отсутствуют.")
-
-    # Создание приложения Telegram
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-
-    # Запуск вебхука
-    logger.info(f"Запуск вебхука на {WEBHOOK_URL}")
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}"
-    )
-
 if __name__ == "__main__":
-    main()
+    PORT = int(os.getenv("PORT", 8080))
+    bot.set_webhook(url=f"{WEBHOOK_URL}/{TOKEN}")
+    app.run(host="0.0.0.0", port=PORT)
