@@ -11,12 +11,25 @@ logger = logging.getLogger(__name__)
 # Инициализация Flask-приложения
 app = Flask(__name__)
 
-# Указываем переменные непосредственно в коде
-TELEGRAM_TOKEN = "7311543449:AAFY5nVhOwRJEbnJLHkTMskMFsGzXrKasXo"
-WEBHOOK_URL = "https://mystravabot-production.up.railway.app"
-STRAVA_CLIENT_ID = "137731"
-STRAVA_CLIENT_SECRET = "7257349b9930aec7f5c2ad6b105f6f24038e9712"
-PORT = 8080  # Используем порт 8080
+# Получение переменных окружения
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
+STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
+PORT = int(os.getenv("PORT", 5000))
+
+# Проверка наличия необходимых переменных окружения
+if not TELEGRAM_TOKEN:
+    logger.error("TELEGRAM_TOKEN не задан. Установите переменную окружения TELEGRAM_TOKEN.")
+    exit(1)
+
+if not WEBHOOK_URL:
+    logger.error("WEBHOOK_URL не задан. Установите переменную окружения WEBHOOK_URL.")
+    exit(1)
+
+if not STRAVA_CLIENT_ID or not STRAVA_CLIENT_SECRET:
+    logger.error("STRAVA_CLIENT_ID или STRAVA_CLIENT_SECRET не заданы.")
+    exit(1)
 
 # Инициализация приложения Telegram Bot
 application = Application.builder().token(TELEGRAM_TOKEN).build()
