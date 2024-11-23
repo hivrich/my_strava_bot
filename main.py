@@ -1,8 +1,9 @@
 import os
 import logging
-from flask import Flask, request, jsonify
+from quart import Quart, request, jsonify
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
+import asyncio
 import requests
 
 # Настройка логирования
@@ -27,8 +28,8 @@ if not STRAVA_CLIENT_ID or not STRAVA_CLIENT_SECRET:
     logger.error("STRAVA_CLIENT_ID или STRAVA_CLIENT_SECRET не заданы.")
     exit(1)
 
-# Инициализация Flask-приложения
-app = Flask(__name__)
+# Инициализация Quart-приложения
+app = Quart(__name__)
 
 # Инициализация Telegram Bot API
 application = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -42,19 +43,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Регистрация обработчика команды /start
 application.add_handler(CommandHandler("start", start))
 
-# Маршрут для обработки вебхуков Telegram
-@app.route("/webhook", methods=["POST"])
-def telegram_webhook():
-    data = request.get_json()
+# Асинхронный маршрут для обработки вебхуков Telegram
+@app.post("/webhook")
+async def telegram_webhook():
+    data = await request.get_json()
     logging.info(f"Webhook получил данные: {data}")
     if data:
         update = Update.de_json(data, application.bot)
-        application.process_update(update)
+        await application.process_update(update)
     return jsonify({"status": "ok"})
 
-# Маршрут для обработки обратного вызова от Strava
-@app.route("/strava_callback", methods=["GET"])
-def strava_callback():
+# Асинхронный маршрут для обработки обратного вызова от Strava
+@app.get("/strava_callback")
+async def strava_callback():
     code = request.args.get('code')
     if code:
         response = requests.post(
@@ -75,6 +76,6 @@ def strava_callback():
 # Главная точка запуска приложения
 if __name__ == "__main__":
     # Устанавливаем вебхук
-    application.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-    # Запускаем Flask-приложение
+    asyncio.run(application.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook"))
+    # Запускаем Quart-приложение
     app.run(host="0.0.0.0", port=PORT)
