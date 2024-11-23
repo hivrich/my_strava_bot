@@ -37,6 +37,7 @@ application = Application.builder().token(TELEGRAM_TOKEN).build()
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info(f"Команда /start получена от пользователя: {update.effective_user.id}")
     await update.message.reply_text("Привет! Бот работает!")
+    logging.info("Ответ на команду /start отправлен пользователю.")
 
 # Регистрация обработчика команды /start
 application.add_handler(CommandHandler("start", start))
