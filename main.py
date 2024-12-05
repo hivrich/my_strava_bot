@@ -50,6 +50,26 @@ def get_strava_athlete_data(access_token):
         logger.error(f"Ошибка получения данных Strava: {response.text}")
         return None
 
+# Получение списка активностей пользователя
+def get_strava_activities(access_token, page=1, per_page=10):
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    response = requests.get(
+        f"https://www.strava.com/api/v3/athlete/activities?page={page}&per_page={per_page}",
+        headers=headers
+    )
+    if response.status_code == 200:
+        return response.json()  # Список активностей
+    else:
+        logger.error(f"Ошибка получения активностей Strava: {response.text}")
+        return []
+
+# Отправка фотографий в Telegram
+async def send_photos_to_user(chat_id, photos):
+    for photo_url in photos:
+        await application.bot.send_photo(chat_id=chat_id, photo=photo_url)
+
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -115,6 +135,7 @@ async def strava_callback():
 
         # Получаем данные пользователя
         athlete_data = get_strava_athlete_data(access_token)
+        activities = get_strava_activities(access_token)
 
         if athlete_data:
             athlete_name = f"{athlete_data['firstname']} {athlete_data['lastname']}"
@@ -122,11 +143,24 @@ async def strava_callback():
                 chat_id=user_id,
                 text=f"Вы успешно авторизовались в Strava! 🎉\nВаш профиль: {athlete_name}",
             )
+
+        # Отправляем фотографии из активностей
+        photos = []
+        for activity in activities:
+            if 'photos' in activity and activity['photos']['count'] > 0:
+                photo_urls = [
+                    photo['urls']['600'] for photo in activity['photos']['primary']  # Получаем URL фотографий
+                ]
+                photos.extend(photo_urls)
+
+        if photos:
+            await send_photos_to_user(user_id, photos)
         else:
             await application.bot.send_message(
                 chat_id=user_id,
-                text="Ошибка получения данных пользователя Strava. Попробуйте позже.",
+                text="Фотографии в ваших активностях не найдены.",
             )
+
         return "Авторизация прошла успешно. Вернитесь в Telegram!"
     else:
         return "Ошибка при авторизации в Strava.", 400
