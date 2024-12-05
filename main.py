@@ -36,8 +36,15 @@ application = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info(f"Команда /start получена от пользователя: {update.effective_user.id}")
-    auth_url = f"https://www.strava.com/oauth/authorize?client_id={STRAVA_CLIENT_ID}&response_type=code&redirect_uri={WEBHOOK_URL}/strava_callback&scope=read,activity:read_all"
+    telegram_id = update.effective_user.id
+    logging.info(f"Команда /start получена от пользователя: {telegram_id}")
+    auth_url = (
+        f"https://www.strava.com/oauth/authorize?"
+        f"client_id={STRAVA_CLIENT_ID}&response_type=code"
+        f"&redirect_uri={WEBHOOK_URL}/strava_callback"
+        f"&scope=read,activity:read_all"
+        f"&state={telegram_id}"
+    )
     keyboard = [[InlineKeyboardButton("Авторизоваться в Strava", url=auth_url)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Привет! Авторизуйтесь в Strava, чтобы продолжить:", reply_markup=reply_markup)
@@ -61,7 +68,7 @@ async def telegram_webhook():
 @app.get("/strava_callback")
 async def strava_callback():
     code = request.args.get('code')
-    state = request.args.get('state')  # Telegram ID, если он был передан
+    state = request.args.get('state')  # Telegram ID
     if code and state:
         # Отправляем сообщение в Telegram
         response = requests.post(
@@ -74,6 +81,7 @@ async def strava_callback():
         if response.status_code == 200:
             return "Авторизация прошла успешно. Вернитесь в Telegram!"
         else:
+            logging.error(f"Ошибка отправки сообщения: {response.text}")
             return "Ошибка при отправке сообщения в Telegram."
     return "Код авторизации не предоставлен или ошибка state."
 
