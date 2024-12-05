@@ -61,9 +61,21 @@ async def telegram_webhook():
 @app.get("/strava_callback")
 async def strava_callback():
     code = request.args.get('code')
-    if code:
-        return f"Код авторизации получен: {code}. Теперь вы можете вернуться в Telegram."
-    return "Ошибка: код авторизации не предоставлен."
+    state = request.args.get('state')  # Telegram ID, если он был передан
+    if code and state:
+        # Отправляем сообщение в Telegram
+        response = requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            json={
+                "chat_id": state,
+                "text": "Вы успешно авторизовались в Strava! 🎉"
+            }
+        )
+        if response.status_code == 200:
+            return "Авторизация прошла успешно. Вернитесь в Telegram!"
+        else:
+            return "Ошибка при отправке сообщения в Telegram."
+    return "Код авторизации не предоставлен или ошибка state."
 
 # Главная точка запуска приложения
 if __name__ == "__main__":
