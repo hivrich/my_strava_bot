@@ -37,7 +37,10 @@ application = Application.builder().token(TELEGRAM_TOKEN).build()
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info(f"Команда /start получена от пользователя: {update.effective_user.id}")
-    await update.message.reply_text("Привет! Бот работает!")
+    auth_url = f"https://www.strava.com/oauth/authorize?client_id={STRAVA_CLIENT_ID}&response_type=code&redirect_uri={WEBHOOK_URL}/strava_callback&scope=read,activity:read_all"
+    keyboard = [[InlineKeyboardButton("Авторизоваться в Strava", url=auth_url)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Привет! Авторизуйтесь в Strava, чтобы продолжить:", reply_markup=reply_markup)
     logging.info("Ответ на команду /start отправлен пользователю.")
 
 # Регистрация обработчика команды /start
@@ -59,20 +62,8 @@ async def telegram_webhook():
 async def strava_callback():
     code = request.args.get('code')
     if code:
-        response = requests.post(
-            'https://www.strava.com/oauth/token',
-            data={
-                'client_id': STRAVA_CLIENT_ID,
-                'client_secret': STRAVA_CLIENT_SECRET,
-                'code': code,
-                'grant_type': 'authorization_code'
-            }
-        )
-        if response.status_code == 200:
-            return "Авторизация успешна. Вы можете вернуться в Telegram."
-        else:
-            return "Ошибка при авторизации в Strava."
-    return "Код авторизации не предоставлен."
+        return f"Код авторизации получен: {code}. Теперь вы можете вернуться в Telegram."
+    return "Ошибка: код авторизации не предоставлен."
 
 # Главная точка запуска приложения
 if __name__ == "__main__":
