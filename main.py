@@ -119,10 +119,18 @@ async def process_activities(user_id, access_token):
         if total_photo_count > 0:
             photos = get_activity_photos(access_token, activity_id)
             for photo in photos:
-                photo_url = photo.get("urls", {}).get("600")
-                if photo_url:
-                    photos_found = True
-                    await application.bot.send_photo(chat_id=user_id, photo=photo_url)
+                # Попытка получить доступные размеры
+                if "urls" in photo:
+                    if "1800" in photo["urls"]:
+                        photo_url = photo["urls"]["1800"]
+                    elif "600" in photo["urls"]:
+                        photo_url = photo["urls"]["600"]
+                    else:
+                        photo_url = next(iter(photo["urls"].values()), None)
+                    
+                    if photo_url and not photo_url.endswith("placeholder-photo@4x-6c5d2aaeadca1292be72943c04ea6defe7dcd610da7dc87a1ccaad30e134b2d6.png"):
+                        photos_found = True
+                        await application.bot.send_photo(chat_id=user_id, photo=photo_url)
 
     if not photos_found:
         await application.bot.send_message(chat_id=user_id, text="Фотографии в ваших активностях не найдены.")
