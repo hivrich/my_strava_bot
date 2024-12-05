@@ -50,7 +50,7 @@ def get_strava_athlete_data(access_token):
         logger.error(f"Ошибка получения данных Strava: {response.text}")
         return None
 
-# Получение списка активностей пользователя
+# Получение активностей пользователя Strava
 def get_strava_activities(access_token):
     headers = {
         "Authorization": f"Bearer {access_token}"
@@ -61,24 +61,6 @@ def get_strava_activities(access_token):
     else:
         logger.error(f"Ошибка получения активностей Strava: {response.text}")
         return []
-
-# Обработка фотографий в активностях
-def get_photos_from_activities(access_token):
-    activities = get_strava_activities(access_token)
-    photos = []
-
-    for activity in activities:
-        activity_id = activity.get("id")
-        response = requests.get(
-            f"https://www.strava.com/api/v3/activities/{activity_id}/photos",
-            headers={"Authorization": f"Bearer {access_token}"}
-        )
-        if response.status_code == 200:
-            activity_photos = response.json()
-            if activity_photos:
-                photos.extend(activity_photos)
-    
-    return photos
 
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -152,14 +134,22 @@ async def strava_callback():
                 chat_id=user_id,
                 text=f"Вы успешно авторизовались в Strava! 🎉\nВаш профиль: {athlete_name}",
             )
-            
-            # Получение фотографий
-            photos = get_photos_from_activities(access_token)
-            if photos:
-                for photo in photos:
-                    await application.bot.send_photo(chat_id=user_id, photo=photo["urls"]["600"])
-            else:
-                await application.bot.send_message(chat_id=user_id, text="Фотографии в ваших активностях не найдены.")
+
+            # Получаем активности пользователя
+            activities = get_strava_activities(access_token)
+            photos_found = False
+
+            for activity in activities:
+                if "photos" in activity and activity["photos"]["primary"]:
+                    photos_found = True
+                    photo_url = activity["photos"]["primary"]["urls"]["600"]
+                    await application.bot.send_photo(chat_id=user_id, photo=photo_url)
+
+            if not photos_found:
+                await application.bot.send_message(
+                    chat_id=user_id,
+                    text="Фотографии в ваших активностях не найдены.",
+                )
         else:
             await application.bot.send_message(
                 chat_id=user_id,
