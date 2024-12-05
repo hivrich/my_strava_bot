@@ -40,9 +40,7 @@ state_storage = {}
 
 # Получение данных пользователя Strava
 def get_strava_athlete_data(access_token):
-    headers = {
-        "Authorization": f"Bearer {access_token}"
-    }
+    headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get("https://www.strava.com/api/v3/athlete", headers=headers)
     if response.status_code == 200:
         return response.json()  # Возвращаем данные пользователя
@@ -52,14 +50,24 @@ def get_strava_athlete_data(access_token):
 
 # Получение активностей пользователя Strava
 def get_strava_activities(access_token):
-    headers = {
-        "Authorization": f"Bearer {access_token}"
-    }
+    headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get("https://www.strava.com/api/v3/athlete/activities", headers=headers)
     if response.status_code == 200:
         return response.json()  # Возвращаем список активностей
     else:
         logger.error(f"Ошибка получения активностей Strava: {response.text}")
+        return []
+
+# Получение фотографий активности
+def get_activity_photos(access_token, activity_id):
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(f"https://www.strava.com/api/v3/activities/{activity_id}/photos", headers=headers)
+    if response.status_code == 200:
+        photos = response.json()
+        logger.info(f"Полученные фотографии: {photos}")
+        return photos
+    else:
+        logger.error(f"Ошибка получения фотографий Strava: {response.text}")
         return []
 
 # Обработчик команды /start
@@ -94,6 +102,29 @@ async def telegram_webhook():
         await application.process_update(update)
     return jsonify({"status": "ok"})
 
+# Обработка активностей пользователя с отправкой фотографий
+async def process_activities(user_id, access_token):
+    activities = get_strava_activities(access_token)
+    if not activities:
+        await application.bot.send_message(chat_id=user_id, text="Активности не найдены.")
+        return
+
+    photos_found = False
+    for activity in activities:
+        activity_id = activity.get("id")
+        total_photo_count = activity.get("total_photo_count", 0)
+
+        if total_photo_count > 0:
+            photos = get_activity_photos(access_token, activity_id)
+            for photo in photos:
+                photo_url = photo.get("urls", {}).get("600")
+                if photo_url:
+                    photos_found = True
+                    await application.bot.send_photo(chat_id=user_id, photo=photo_url)
+
+    if not photos_found:
+        await application.bot.send_message(chat_id=user_id, text="Фотографии в ваших активностях не найдены.")
+
 # Асинхронный маршрут для обработки обратного вызова от Strava
 @app.route("/strava_callback", methods=["GET"])
 async def strava_callback():
@@ -127,7 +158,6 @@ async def strava_callback():
 
         # Получаем данные пользователя
         athlete_data = get_strava_athlete_data(access_token)
-
         if athlete_data:
             athlete_name = f"{athlete_data['firstname']} {athlete_data['lastname']}"
             await application.bot.send_message(
@@ -135,23 +165,8 @@ async def strava_callback():
                 text=f"Вы успешно авторизовались в Strava! 🎉\nВаш профиль: {athlete_name}",
             )
 
-            # Получаем активности пользователя
-            activities = get_strava_activities(access_token)
-            photos_found = False
-
-            for activity in activities:
-                # Проверяем наличие фотографий
-                logger.info(f"Данные активности: {activity}")
-                if activity.get("photos") and activity["photos"].get("primary"):
-                    photos_found = True
-                    photo_url = activity["photos"]["primary"]["urls"]["600"]
-                    await application.bot.send_photo(chat_id=user_id, photo=photo_url)
-
-            if not photos_found:
-                await application.bot.send_message(
-                    chat_id=user_id,
-                    text="Фотографии в ваших активностях не найдены.",
-                )
+            # Обрабатываем активности пользователя
+            await process_activities(user_id, access_token)
         else:
             await application.bot.send_message(
                 chat_id=user_id,
