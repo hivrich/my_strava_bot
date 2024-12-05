@@ -38,6 +38,18 @@ application = Application.builder().token(TELEGRAM_TOKEN).build()
 # Временное хранилище для state (в реальном проекте лучше использовать базу данных)
 state_storage = {}
 
+# Получение данных пользователя Strava
+def get_strava_athlete_data(access_token):
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    response = requests.get("https://www.strava.com/api/v3/athlete", headers=headers)
+    if response.status_code == 200:
+        return response.json()  # Возвращаем данные пользователя
+    else:
+        logger.error(f"Ошибка получения данных Strava: {response.text}")
+        return None
+
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -98,10 +110,23 @@ async def strava_callback():
     )
 
     if response.status_code == 200:
-        await application.bot.send_message(
-            chat_id=user_id,
-            text="Вы успешно авторизовались в Strava! 🎉",
-        )
+        tokens = response.json()
+        access_token = tokens["access_token"]
+
+        # Получаем данные пользователя
+        athlete_data = get_strava_athlete_data(access_token)
+
+        if athlete_data:
+            athlete_name = f"{athlete_data['firstname']} {athlete_data['lastname']}"
+            await application.bot.send_message(
+                chat_id=user_id,
+                text=f"Вы успешно авторизовались в Strava! 🎉\nВаш профиль: {athlete_name}",
+            )
+        else:
+            await application.bot.send_message(
+                chat_id=user_id,
+                text="Ошибка получения данных пользователя Strava. Попробуйте позже.",
+            )
         return "Авторизация прошла успешно. Вернитесь в Telegram!"
     else:
         return "Ошибка при авторизации в Strava.", 400
