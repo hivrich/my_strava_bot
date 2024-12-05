@@ -137,18 +137,21 @@ async def strava_callback():
 
             # Получаем активности пользователя
             activities = get_strava_activities(access_token)
-            photos_found = False
 
-            for activity in activities:
-                if "photos" in activity and activity["photos"]["primary"]:
-                    photos_found = True
-                    photo_url = activity["photos"]["primary"]["urls"]["600"]
-                    await application.bot.send_photo(chat_id=user_id, photo=photo_url)
+# Проверяем данные активностей
+if activities:
+    for activity in activities[:5]:  # Ограничимся 5 активностями для теста
+        activity_data = str(activity)  # Превращаем данные в текст
+        await application.bot.send_message(
+            chat_id=user_id,
+            text=f"Данные активности:\n{activity_data[:4000]}"  # Показываем до 4000 символов
+        )
+else:
+    await application.bot.send_message(
+        chat_id=user_id,
+        text="Не удалось получить активности Strava. Проверьте ваш аккаунт.",
+    )
 
-            if not photos_found:
-                await application.bot.send_message(
-                    chat_id=user_id,
-                    text="Фотографии в ваших активностях не найдены.",
                 )
         else:
             await application.bot.send_message(
