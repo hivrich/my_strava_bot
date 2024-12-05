@@ -53,7 +53,9 @@ def get_strava_activities(access_token):
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get("https://www.strava.com/api/v3/athlete/activities", headers=headers)
     if response.status_code == 200:
-        return response.json()  # Возвращаем список активностей
+        activities = response.json()
+        logger.info(f"Полученные активности: {activities}")
+        return activities  # Возвращаем список активностей
     else:
         logger.error(f"Ошибка получения активностей Strava: {response.text}")
         return []
@@ -64,10 +66,10 @@ def get_activity_photos(access_token, activity_id):
     response = requests.get(f"https://www.strava.com/api/v3/activities/{activity_id}/photos", headers=headers)
     if response.status_code == 200:
         photos = response.json()
-        logger.info(f"Полученные фотографии: {photos}")
+        logger.info(f"Полученные фотографии для активности {activity_id}: {photos}")
         return photos
     else:
-        logger.error(f"Ошибка получения фотографий Strava: {response.text}")
+        logger.error(f"Ошибка получения фотографий Strava для активности {activity_id}: {response.text}")
         return []
 
 # Обработчик команды /start
@@ -81,7 +83,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"?client_id={STRAVA_CLIENT_ID}"
         f"&redirect_uri={WEBHOOK_URL}/strava_callback"
         f"&response_type=code"
-        f"&scope=read,activity:read_all,profile:read_all"
+        f"&scope=read,activity:read,activity:read_all,profile:read_all"
         f"&state={state}"
     )
 
@@ -132,6 +134,10 @@ async def strava_callback():
     returned_state = request.args.get("state")
     user_id = None
 
+    # Логирование полученных параметров
+    logger.info(f"Получен код: {code}")
+    logger.info(f"Получен state: {returned_state}")
+
     # Проверяем соответствие state
     for uid, saved_state in state_storage.items():
         if saved_state == returned_state:
@@ -139,6 +145,7 @@ async def strava_callback():
             break
 
     if not user_id:
+        logger.warning("State не совпадает или пользователь не найден.")
         return "Ошибка: state не совпадает или пользователь не найден.", 400
 
     # Обмениваем code на access token
@@ -155,9 +162,14 @@ async def strava_callback():
     if response.status_code == 200:
         tokens = response.json()
         access_token = tokens["access_token"]
+        refresh_token = tokens.get("refresh_token")
+
+        logger.info(f"Получен новый access_token: {access_token}")
+        logger.info(f"Получен refresh_token: {refresh_token}")
 
         # Получаем данные пользователя
         athlete_data = get_strava_athlete_data(access_token)
+
         if athlete_data:
             athlete_name = f"{athlete_data['firstname']} {athlete_data['lastname']}"
             await application.bot.send_message(
@@ -174,6 +186,7 @@ async def strava_callback():
             )
         return "Авторизация прошла успешно. Вернитесь в Telegram!"
     else:
+        logger.error(f"Ошибка при обмене code на токен: {response.text}")
         return "Ошибка при авторизации в Strava.", 400
 
 # Главная точка запуска приложения
