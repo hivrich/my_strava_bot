@@ -70,19 +70,35 @@ async def strava_callback():
     code = request.args.get('code')
     state = request.args.get('state')  # Telegram ID
     if code and state:
-        # Отправляем сообщение в Telegram
+        # Обмен кода на токены Strava
         response = requests.post(
-            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-            json={
-                "chat_id": state,
-                "text": "Вы успешно авторизовались в Strava! 🎉"
+            'https://www.strava.com/oauth/token',
+            data={
+                'client_id': STRAVA_CLIENT_ID,
+                'client_secret': STRAVA_CLIENT_SECRET,
+                'code': code,
+                'grant_type': 'authorization_code'
             }
         )
         if response.status_code == 200:
-            return "Авторизация прошла успешно. Вернитесь в Telegram!"
+            data = response.json()
+            access_token = data.get('access_token')
+            # Отправляем сообщение в Telegram
+            telegram_response = requests.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                json={
+                    "chat_id": state,
+                    "text": "Вы успешно авторизовались в Strava! 🎉"
+                }
+            )
+            if telegram_response.status_code == 200:
+                return "Авторизация прошла успешно. Вернитесь в Telegram!"
+            else:
+                logging.error(f"Ошибка отправки сообщения в Telegram: {telegram_response.text}")
+                return "Ошибка при отправке сообщения в Telegram."
         else:
-            logging.error(f"Ошибка отправки сообщения: {response.text}")
-            return "Ошибка при отправке сообщения в Telegram."
+            logging.error(f"Ошибка получения токена Strava: {response.text}")
+            return "Ошибка при авторизации в Strava."
     return "Код авторизации не предоставлен или ошибка state."
 
 # Маршрут для отладки переменных окружения
