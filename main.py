@@ -73,7 +73,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"?client_id={STRAVA_CLIENT_ID}"
         f"&redirect_uri={WEBHOOK_URL}/strava_callback"
         f"&response_type=code"
-        f"&scope=read,activity:read_all,profile:read_all"
+        f"&scope=read,activity:read,activity:read_all,profile:read_all"
         f"&state={state}"
     )
 
@@ -132,7 +132,7 @@ async def strava_callback():
             athlete_name = f"{athlete_data['firstname']} {athlete_data['lastname']}"
             await application.bot.send_message(
                 chat_id=user_id,
-                text=f"Вы успешно авторизовались в Strava! 🎉\nВаш профиль: {athlete_name}",
+                text=f"Вы успешно авторизовались в Strava! \ud83c\udf89\nВаш профиль: {athlete_name}",
             )
 
             # Получаем активности пользователя
@@ -140,10 +140,12 @@ async def strava_callback():
             photos_found = False
 
             for activity in activities:
-                if "photos" in activity and activity["photos"]["primary"]:
-                    photos_found = True
-                    photo_url = activity["photos"]["primary"]["urls"]["600"]
-                    await application.bot.send_photo(chat_id=user_id, photo=photo_url)
+                if "photos" in activity and activity["photos"]:
+                    for photo in activity["photos"]:
+                        if "urls" in photo and "1800" in photo["urls"]:
+                            photos_found = True
+                            photo_url = photo["urls"]["1800"]
+                            await application.bot.send_photo(chat_id=user_id, photo=photo_url)
 
             if not photos_found:
                 await application.bot.send_message(
