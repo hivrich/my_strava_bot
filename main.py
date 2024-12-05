@@ -36,18 +36,11 @@ application = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_id = update.effective_user.id
-    logging.info(f"Команда /start получена от пользователя: {telegram_id}")
-    auth_url = (
-        f"https://www.strava.com/oauth/authorize?"
-        f"client_id={STRAVA_CLIENT_ID}&response_type=code"
-        f"&redirect_uri={WEBHOOK_URL}/strava_callback"
-        f"&scope=read,activity:read_all"
-        f"&state={telegram_id}"
-    )
+    logging.info(f"Команда /start получена от пользователя: {update.effective_user.id}")
+    auth_url = f"https://www.strava.com/oauth/authorize?client_id={STRAVA_CLIENT_ID}&response_type=code&redirect_uri={WEBHOOK_URL}/strava_callback&scope=read,activity:read_all"
     keyboard = [[InlineKeyboardButton("Авторизоваться в Strava", url=auth_url)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Привет! Авторизуйтесь в Strava, чтобы продолжить:", reply_markup=reply_markup)
+    await update.message.reply_text("Нажмите на кнопку ниже, чтобы авторизоваться в Strava:", reply_markup=reply_markup)
     logging.info("Ответ на команду /start отправлен пользователю.")
 
 # Регистрация обработчика команды /start
@@ -68,49 +61,36 @@ async def telegram_webhook():
 @app.get("/strava_callback")
 async def strava_callback():
     code = request.args.get('code')
-    state = request.args.get('state')  # Telegram ID
+    state = request.args.get('state')  # Получаем state для идентификации Telegram ID
     if code and state:
-        # Обмен кода на токены Strava
-        response = requests.post(
-            'https://www.strava.com/oauth/token',
-            data={
-                'client_id': STRAVA_CLIENT_ID,
-                'client_secret': STRAVA_CLIENT_SECRET,
-                'code': code,
-                'grant_type': 'authorization_code'
-            }
-        )
-        if response.status_code == 200:
-            data = response.json()
-            access_token = data.get('access_token')
-            # Отправляем сообщение в Telegram
-            telegram_response = requests.post(
-                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                json={
-                    "chat_id": state,
-                    "text": "Вы успешно авторизовались в Strava! 🎉"
+        try:
+            response = requests.post(
+                'https://www.strava.com/oauth/token',
+                data={
+                    'client_id': STRAVA_CLIENT_ID,
+                    'client_secret': STRAVA_CLIENT_SECRET,
+                    'code': code,
+                    'grant_type': 'authorization_code'
                 }
             )
-            if telegram_response.status_code == 200:
+            if response.status_code == 200:
+                data = response.json()
+                telegram_id = state
+                logger.info(f"Успешная авторизация в Strava для Telegram ID: {telegram_id}")
+                # Отправляем сообщение в Telegram
+                await application.bot.send_message(
+                    chat_id=telegram_id,
+                    text="Вы успешно авторизовались в Strava! 🎉"
+                )
                 return "Авторизация прошла успешно. Вернитесь в Telegram!"
             else:
-                logging.error(f"Ошибка отправки сообщения в Telegram: {telegram_response.text}")
-                return "Ошибка при отправке сообщения в Telegram."
-        else:
-            logging.error(f"Ошибка получения токена Strava: {response.text}")
-            return "Ошибка при авторизации в Strava."
+                logger.error(f"Ошибка авторизации в Strava: {response.text}")
+                return "Ошибка при авторизации в Strava."
+        except Exception as e:
+            logger.error(f"Ошибка обработки Strava callback: {e}")
+            return "Произошла ошибка при обработке вашего запроса."
+    logger.warning("Код авторизации не предоставлен или ошибка state.")
     return "Код авторизации не предоставлен или ошибка state."
-
-# Маршрут для отладки переменных окружения
-@app.get("/debug_env")
-async def debug_env():
-    return jsonify({
-        "TELEGRAM_TOKEN": TELEGRAM_TOKEN,
-        "WEBHOOK_URL": WEBHOOK_URL,
-        "STRAVA_CLIENT_ID": STRAVA_CLIENT_ID,
-        "STRAVA_CLIENT_SECRET": STRAVA_CLIENT_SECRET,
-        "PORT": PORT
-    })
 
 # Главная точка запуска приложения
 if __name__ == "__main__":
